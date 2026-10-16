@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment files. Never commit these.
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
