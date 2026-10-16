@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-import api.index as api_module
+import main as api_module
 
 
 @pytest.fixture
@@ -74,9 +74,11 @@ def test_health_is_reachable_without_prefix(client):
 
 
 def test_health_is_reachable_with_api_prefix(client):
-    """Vercel may pass the full path through, so /api/health must also work.
+    """Vercel passes the full path through, so /api/health must also work.
 
-    This is the middleware's whole reason for existing.
+    This is the middleware's whole reason for existing: the root vercel.json
+    rewrites /api/* to this service, and the service receives the original
+    path rather than a stripped one.
     """
     assert client.get("/api/health").status_code == 200
 

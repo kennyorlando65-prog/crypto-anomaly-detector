@@ -51,15 +51,23 @@ No database, no paid service, no account required to run it.
 
 ## Run it locally
 
-Two processes: the engine on port 8000, the dashboard on port 3000.
+The repository is two services. Each has its own dependency file and its own
+build, which is what lets Vercel build them independently.
+
+```
+backend/     FastAPI + pandas detection engine   (Python)
+frontend/    Next.js dashboard                   (Node)
+vercel.json  declares both services and the routing between them
+```
 
 ### 1. Detection engine
 
 ```bash
+cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
 
-uvicorn api.index:app --reload --port 8000
+uvicorn main:app --reload --port 8000
 ```
 
 Check it: <http://localhost:8000/health> and the interactive docs at
@@ -68,8 +76,10 @@ Check it: <http://localhost:8000/health> and the interactive docs at
 ### 2. Dashboard
 
 ```bash
+cd frontend
 npm install
-NEXT_PUBLIC_API_BASE=http://localhost:8000 npm run dev
+echo 'NEXT_PUBLIC_API_BASE=http://localhost:8000' > .env.local
+npm run dev
 ```
 
 Open <http://localhost:3000>.
@@ -77,11 +87,16 @@ Open <http://localhost:3000>.
 ### 3. Tests
 
 ```bash
-pytest -q          # 77 tests: detectors, backtest, digest, client, API
-npm test           # 31 tests: formatting, filtering, CSV, API client
-npm run lint
-npm run typecheck
+cd backend  && pytest -q            # 77 tests: detectors, backtest, digest, client, API
+cd frontend && npm test             # 35 tests: formatting, filtering, CSV, API client
+cd frontend && npm run lint && npm run typecheck
 ```
+
+### Running both together
+
+With the Vercel CLI installed, `vercel dev` from the repository root starts both
+services on one port and applies the routing from `vercel.json`, which is the
+closest local equivalent of the deployed arrangement.
 
 ---
 
@@ -172,7 +187,7 @@ Every value is optional. The app runs with sensible defaults and no configuratio
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `NEXT_PUBLIC_API_BASE` | `/api` | Where the dashboard finds the engine |
+| `NEXT_PUBLIC_API_BASE` | `/api` | Where the dashboard finds the engine (frontend) |
 | `COINGECKO_CALLS_PER_MINUTE` | `10` | Rate-limit budget |
 | `TRACKED_ASSETS` | 8 major assets | Comma-separated CoinGecko ids |
 | `DETECTOR_WINDOW` | `30` | Price z-score lookback, in days |
@@ -192,30 +207,40 @@ See `.env.example`.
 
 You connect your own Vercel account; this cannot be done for you.
 
+A Next.js frontend and a Python backend in one repository need
+[Vercel Services](https://vercel.com/docs/services), which builds each service
+separately and routes between them. That is what the root `vercel.json` declares.
+
 1. Push this repo to GitHub (already done if you are reading it there).
 2. Go to <https://vercel.com/new> and **Import** the repository.
-3. Leave **Framework Preset** as **Next.js** and **Root Directory** as `./`.
-   Vercel detects the Python function from `vercel.json` automatically.
+3. **Framework Preset must be `Services`**, not `Next.js`, and **Root Directory**
+   must be the repository root. A project left on the Next.js preset builds the
+   dashboard only and silently drops the Python service, which is exactly the
+   failure mode that produced a 404 at `/api` before.
 4. **Environment variables** — none are required. Optionally add
    `COINGECKO_CALLS_PER_MINUTE` or `TRACKED_ASSETS` from the table above.
 5. Click **Deploy**.
 
-`vercel.json` sets `maxDuration` for `api/index.py` and excludes the test and
-build directories from the function bundle. It deliberately does **not** set a
-`runtime` key: Vercel auto-detects the Python runtime from `requirements.txt`,
-and an explicit `"runtime": "python3.12"` is not a valid runtime string (Vercel
-expects a versioned package such as `@vercel/python@4.x`, or nothing at all).
-The Python version is pinned separately in `.python-version`. The dashboard calls
-the engine at `/api` on the same origin, so no cross-service configuration is
-needed.
+`vercel.json` does three things: declares the two service roots, gives the
+backend its ASGI entrypoint (`main:app`, resolving to the `app` object in
+`backend/main.py`), and rewrites `/api/*` to the backend. It deliberately sets no
+`runtime` key: Vercel detects the Python runtime, and a bare `"python3.12"`
+string is not a valid runtime identifier. The Python version is pinned separately
+in `backend/.python-version`.
+
+If you are redeploying an existing project that is stuck on the wrong preset,
+change **Settings → Build and Deployment → Framework Preset** to **Services**
+before the next deploy. The routing table is built at deploy time, so a service
+cannot be added to an already-live deployment without one.
 
 To verify after deploying: `https://your-app.vercel.app/api/health` should return
-`{"status":"ok",...}`.
+`{"status":"ok",...}`. If it returns an HTML 404 page instead, the backend
+service did not build — see the Framework Preset step above.
 
 ### Deploying the engine separately
 
 If you would rather run the Python engine elsewhere (Render, Fly, a VPS), deploy
-it as a normal ASGI app with `uvicorn api.index:app`, then set
+`backend/` as a normal ASGI app with `uvicorn main:app`, then set
 `NEXT_PUBLIC_API_BASE` on the Vercel project to that URL. The frontend is not
 welded to one hosting arrangement.
 
@@ -224,21 +249,40 @@ welded to one hosting arrangement.
 ## Project layout
 
 ```
-engine/          detection logic, CoinGecko client, backtest, digest
-  detectors.py     the three detectors and severity grading
-  coingecko.py     rate-limited, cached API client
-  backtest.py      historical replay
-  digest.py        daily summary
-  config.py        thresholds, overridable by environment
-  assets.py        tracked asset list and the hard ceiling
-api/index.py     FastAPI app and all endpoints
-app/             Next.js App Router pages
-components/      chart, tables, badges, the four views
-lib/             API client, types, formatting and filtering helpers
-tests/           pytest (Python) and vitest (TypeScript)
+backend/         Python service (Vercel service root)
+  main.py          FastAPI app and all endpoints
+  engine/          detection logic
+    detectors.py     the three detectors and severity grading
+    coingecko.py     rate-limited, cached API client
+    backtest.py      historical replay
+    digest.py        daily summary
+    config.py        thresholds, overridable by environment
+    assets.py        tracked asset list and the hard ceiling
+  tests/           pytest suite
+  requirements.txt runtime dependencies
+frontend/        Next.js service (Vercel service root)
+  app/             App Router pages
+  components/      chart, tables, badges, the four views, error diagnosis
+  lib/             API client, types, formatting and filtering helpers
+  tests/           vitest suite
+vercel.json      both services and the public routing between them
 ```
 
 ---
+
+## Why the frontend resolves its own API URL
+
+`fetch('/api/assets')` is fine in a browser and fatal on the server. A Server
+Component has no document, so a relative URL has nothing to resolve against and
+the WHATWG parser throws `Failed to parse URL from /api/assets` before any
+request is attempted.
+
+The asset list is therefore fetched in the browser, where an origin always
+exists, and `lib/api.ts` exposes `resolveUrl` for callers that do have an origin
+to pass in. The client also classifies failures: a JSON error means the engine is
+deployed and complaining, while an HTML response means it is not deployed at all.
+Those two need opposite fixes, so the dashboard says which one it saw instead of
+repeating generic advice.
 
 ## Limitations, stated plainly
 

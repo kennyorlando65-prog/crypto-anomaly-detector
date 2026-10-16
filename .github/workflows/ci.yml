@@ -7,22 +7,26 @@ on:
     branches: [main]
 
 jobs:
-  python:
-    name: Detection engine (pytest)
+  backend:
+    name: Detection engine (ruff, pytest)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: pip
+          cache-dependency-path: backend/requirements*.txt
 
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Lint with ruff
-        run: ruff check engine api tests
+        run: ruff check .
 
       - name: Run tests
         run: pytest -q
@@ -30,6 +34,9 @@ jobs:
   frontend:
     name: Dashboard (lint, typecheck, test, build)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -37,11 +44,11 @@ jobs:
         with:
           node-version: '20'
 
-      # `npm install` rather than `npm ci`: this repository does not commit a
-      # package-lock.json, and `npm ci` (and setup-node's `cache: npm`) both
-      # hard-fail without one. Every version in package.json is pinned exactly,
-      # so installs are still deterministic. Commit a lockfile and switch this
-      # back to `npm ci` if you want transitive dependencies pinned too.
+      # `npm install` rather than `npm ci`: package-lock.json is generated
+      # locally but not committed (it is ~270 KB and could not be pushed through
+      # the GitHub API). Every version in package.json is pinned exactly, so
+      # installs are still deterministic. Commit a lockfile and switch this back
+      # to `npm ci` to pin transitive dependencies too.
       - name: Install dependencies
         run: npm install
 
@@ -56,10 +63,6 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          # The build must not need a live backend. The page handles an
-          # unreachable engine by rendering a notice, so this is safe.
-          NEXT_PUBLIC_API_BASE: http://127.0.0.1:8000
 
   secrets:
     name: Secret scan (gitleaks)

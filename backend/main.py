@@ -56,10 +56,10 @@ app.add_middleware(
 async def strip_api_prefix(request, call_next):
     """Make the app work whether or not the host strips the ``/api`` prefix.
 
-    Vercel serves a file-based Python function at its file path, so
-    ``api/index.py`` is reachable at ``/api``. Whether the ASGI app then sees
-    ``/api/health`` or ``/health`` depends on the host, and getting this wrong
-    produces a 404 that is hard to diagnose from the outside.
+    On Vercel this app is its own service, exposed at ``/api`` by the rewrite
+    in the root ``vercel.json``. Whether the ASGI app then sees ``/api/health``
+    or ``/health`` depends on the host, and getting this wrong produces a 404
+    that is hard to diagnose from the outside.
 
     Rather than guess, the routes are declared without a prefix and this
     middleware removes a leading ``/api`` when it is present. The app is then
