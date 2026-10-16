@@ -1,3 +1,5 @@
+import AppShell from '@/components/AppShell';
+
 export default function Home() {
   return (
     <main className="mx-auto max-w-6xl px-5 py-10">

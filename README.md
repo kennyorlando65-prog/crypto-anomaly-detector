@@ -233,6 +233,21 @@ change **Settings → Build and Deployment → Framework Preset** to **Services*
 before the next deploy. The routing table is built at deploy time, so a service
 cannot be added to an already-live deployment without one.
 
+Two more settings cause a silent single-service build, and both are worth
+checking in the same screen:
+
+- **Root Directory must be the repository root**, not `frontend/`. A subfolder
+  root hides the root `vercel.json` from Vercel entirely, so there is no
+  `services` key to read and the frontend builds alone.
+- **Clear the build cache** on the redeploy after changing the layout. Vercel
+  restores the previous deployment's cache, and a cache restored across a
+  directory restructure can resolve stale paths.
+
+A build log that is set up correctly shows **a separate build for each service** —
+a Next.js build and a Python/FastAPI build — not a single Next.js build. If the
+log mentions only `Detected Next.js version`, the project is still on the
+Next.js preset and the backend was not part of the deployment.
+
 To verify after deploying: `https://your-app.vercel.app/api/health` should return
 `{"status":"ok",...}`. If it returns an HTML 404 page instead, the backend
 service did not build — see the Framework Preset step above.
