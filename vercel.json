@@ -3,10 +3,8 @@
   "framework": "nextjs",
   "functions": {
     "api/index.py": {
-      "runtime": "python3.12",
       "maxDuration": 60,
-      "memory": 1024,
-      "excludeFiles": "{tests,node_modules,.next,.git,.venv}/**"
+      "excludeFiles": "{tests/,node_modules/,.next/,.git/,.venv/}"
     }
   }
 }

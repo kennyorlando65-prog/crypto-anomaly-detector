@@ -200,9 +200,14 @@ You connect your own Vercel account; this cannot be done for you.
    `COINGECKO_CALLS_PER_MINUTE` or `TRACKED_ASSETS` from the table above.
 5. Click **Deploy**.
 
-`vercel.json` pins the Python runtime for `api/index.py` and excludes the test
-and build directories from the function bundle. The dashboard calls the engine at
-`/api` on the same origin, so no cross-service configuration is needed.
+`vercel.json` sets `maxDuration` for `api/index.py` and excludes the test and
+build directories from the function bundle. It deliberately does **not** set a
+`runtime` key: Vercel auto-detects the Python runtime from `requirements.txt`,
+and an explicit `"runtime": "python3.12"` is not a valid runtime string (Vercel
+expects a versioned package such as `@vercel/python@4.x`, or nothing at all).
+The Python version is pinned separately in `.python-version`. The dashboard calls
+the engine at `/api` on the same origin, so no cross-service configuration is
+needed.
 
 To verify after deploying: `https://your-app.vercel.app/api/health` should return
 `{"status":"ok",...}`.
