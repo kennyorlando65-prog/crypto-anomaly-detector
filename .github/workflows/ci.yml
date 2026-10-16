@@ -36,13 +36,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
 
-      # npm install rather than npm ci: this repository does not commit a
-      # package-lock.json, so npm ci would fail. Versions are pinned exactly in
-      # package.json, so installs are still deterministic.
+      # `npm install` rather than `npm ci`: this repository does not commit a
+      # package-lock.json, and `npm ci` (and setup-node's `cache: npm`) both
+      # hard-fail without one. Every version in package.json is pinned exactly,
+      # so installs are still deterministic. Commit a lockfile and switch this
+      # back to `npm ci` if you want transitive dependencies pinned too.
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install
 
       - name: Lint
         run: npm run lint
