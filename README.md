@@ -26,13 +26,13 @@ Each flag is graded into a severity tier: **watch**, **notable** or **extreme**.
 
 ### The one design decision that matters
 
-Every baseline is computed from data **strictly before** the point being scored.
+I compute every baseline from data **strictly before** the point being scored.
 The rolling window is shifted by one observation.
 
 This is what stops the detector from cheating. If the current point were included
 in its own baseline, a large move would inflate the mean and the standard
 deviation and partially hide itself. That is look-ahead bias, and it makes
-backtests look better than reality. It is avoided here on purpose, and there is a
+backtests look better than reality. I avoid it here on purpose, and there is a
 test that asserts it (`test_detector_does_not_use_future_data`).
 
 ---
@@ -138,7 +138,7 @@ and a set of dots, so a dependency would cost more than it saves.
 
 ### On the backtest
 
-The backtest is the credibility feature, and it is deliberately narrow. It
+The backtest is the credibility feature, and I kept it deliberately narrow. It
 reports **how many flags fired**, which is a false-positive load measurement. It
 does **not** report accuracy, precision, or profit, because the detectors make no
 prediction and any such number would be invented.
